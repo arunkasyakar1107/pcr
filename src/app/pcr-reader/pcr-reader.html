@@ -1,0 +1,88 @@
+<div>
+	<h2>CSV Reader</h2>
+	<div style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px;">
+		<input type="file" (change)="onFileSelected($event)" accept=".csv" />
+		<input type="text" [(ngModel)]="sheetUrl" placeholder="Paste Google Sheets URL here" style="width: 350px;" />
+		<button (click)="onUrlRead()">Read from URL</button>
+	</div>
+	<div *ngIf="error" style="color: red;">{{ error }}</div>
+	<table *ngIf="csvData.length" style="width: 100%; border-collapse: collapse; margin-bottom: 2rem;">
+		<thead>
+			<tr>
+				<th *ngFor="let key of getKeys(csvData[0])" style="border: 1px solid #ccc; padding: 10px; background: #f2f2f2;">{{ key }}</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr *ngFor="let row of csvData; let i = index" [ngStyle]="i === 5 ? {'background-color': '#ffeeba'} : null">
+				<td *ngFor="let key of getKeys(row)" style="border: 1px solid #ccc; padding: 10px;">{{ row[key] }}</td>
+			</tr>
+						<tr style="background: #eafaf1; font-weight: bold;">
+								<td *ngFor="let key of getKeys(csvData[0]); let k = index" style="border: 1px solid #ccc; padding: 10px;">
+										<ng-container *ngIf="key === 'OI CE'">
+											{{ totalOiCe }} <span style="font-size: 12px; color: #888;">({{ oiCePercent }}%)</span>
+										</ng-container>
+										<ng-container *ngIf="key === 'OI PE'">
+											{{ totalOiPe }} <span style="font-size: 12px; color: #888;">({{ oiPePercent }}%)</span>
+										</ng-container>
+										<ng-container *ngIf="key === 'Chng in OI CE'">
+												<span [ngStyle]="{
+													'background': totalChngOiCe > totalChngOiPe ? '#ffe066' : '',
+													'color': totalChngOiCe > totalChngOiPe ? '#000' : ''
+												}">{{ totalChngOiCe }} <span style="font-size: 12px; color: #888;">({{ chngOiCePercent }}%)</span></span>
+										</ng-container>
+										<ng-container *ngIf="key === 'Chng in OI PE'">
+												<span [ngStyle]="{
+													'background': totalChngOiPe > totalChngOiCe ? '#ffe066' : '',
+													'color': totalChngOiPe > totalChngOiCe ? '#000' : ''
+												}">{{ totalChngOiPe }} <span style="font-size: 12px; color: #888;">({{ chngOiPePercent }}%)</span></span>
+										</ng-container>
+										<ng-container *ngIf="key !== 'OI CE' && key !== 'OI PE' && key !== 'Chng in OI CE' && key !== 'Chng in OI PE'">&nbsp;</ng-container>
+								</td>
+						</tr>
+		</tbody>
+	</table>
+	<div *ngIf="pcrValue !== null" style="margin-bottom: 1.5rem; font-size: 1.2rem; font-weight: bold; color: #2c3e50; display: flex; align-items: center; gap: 1rem;">
+		<span>PCR Value: {{ pcrValue }}</span>
+		<span>({{ totalOiPe }} / {{ totalOiCe }})</span>
+	<span *ngIf="pcrValue === 1" style="writing-mode: vertical-lr; transform: rotate(180deg); color: #888; margin-left: 1rem;">sideways</span>
+	<span *ngIf="pcrValue < 1" style="color: #e74c3c; margin-left: 1rem;">PUT Buy</span>
+	<span *ngIf="pcrValue > 1" style="color: #27ae60; margin-left: 1rem;">CALL Buy</span>
+	<span *ngIf="pcrValue > 1.5 || pcrValue < 0.5" style="color: #f39c12; margin-left: 1rem; font-weight: bold;">chance of reversal</span>
+	</div>
+	<div style="display: flex; gap: 2rem; margin-top: 2rem;">
+		<div *ngIf="majorResistance.length" style="flex: 1;">
+			<h3>Major Resistance</h3>
+			<table style="border-collapse: collapse; width: 100%; margin-bottom: 1rem;">
+				<thead>
+					<tr style="background: #f2f2f2;">
+						<th style="border: 1px solid #ccc; padding: 8px;">Strike</th>
+						<th style="border: 1px solid #ccc; padding: 8px;">OI CE</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr *ngFor="let item of majorResistance | slice:0:5">
+						<td style="border: 1px solid #ccc; padding: 8px;">{{ item.strike }}</td>
+						<td style="border: 1px solid #ccc; padding: 8px;">{{ item.oiCe }}</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+		<div *ngIf="majorSupport.length" style="flex: 1;">
+			<h3>Major Support</h3>
+			<table style="border-collapse: collapse; width: 100%;">
+				<thead>
+					<tr style="background: #f2f2f2;">
+						<th style="border: 1px solid #ccc; padding: 8px;">Strike</th>
+						<th style="border: 1px solid #ccc; padding: 8px;">OI PE</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr *ngFor="let item of majorSupport | slice:0:5">
+						<td style="border: 1px solid #ccc; padding: 8px;">{{ item.strike }}</td>
+						<td style="border: 1px solid #ccc; padding: 8px;">{{ item.oiPe }}</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>
