@@ -11,29 +11,37 @@ import { FormsModule } from '@angular/forms';
   styleUrl: './pcr-reader.scss'
 })
 export class PcrReaderComponent {
-  // ...existing code...
+  selectedDataSource: string = 'nifty50';
+  private dataSourceUrls: { [key: string]: string } = {
+    nifty50: 'https://docs.google.com/spreadsheets/d/1tOakXg31gqP05xD9k4ePaIMdUhWN74KhnwxqvdzfLr8/export?format=csv',
+    crudeoil: 'https://docs.google.com/spreadsheets/d/1yp_6gyY69xqYO-bCZozUOw7pPGoB-vbfB2lxLJ5T-wQ/export?format=csv',
+    banknifty: 'https://docs.google.com/spreadsheets/d/1vnU8YIWfwFmuSQza2ftHCbsEFXPpeOseFjCIDt8GAxA/export?format=csv', 
+    sensex: 'https://docs.google.com/spreadsheets/d/132J1JY55pwteQL2ednuUdcr0zhWgbKwEjJeYSaDPOZ0/export?format=csv' 
+  };
+
   csvData: any[] = [];
   error: string = '';
-  // Remove sheetUrl and constructor
-
-  sheetUrl: string = 'https://docs.google.com/spreadsheets/d/1tOakXg31gqP05xD9k4ePaIMdUhWN74KhnwxqvdzfLr8/edit?usp=sharing';
 
   constructor() {
-    this.onUrlRead();
+    this.fetchData();
   }
 
-  async onUrlRead() {
-    if (!this.sheetUrl) return;
-    // Convert Google Sheets URL to CSV export URL
-    const match = this.sheetUrl.match(/\/d\/(.*?)\//);
-    if (!match) {
-      this.error = 'Invalid Google Sheets URL.';
+  onDataSourceChange(event: Event) {
+    const target = event.target as HTMLSelectElement;
+    this.selectedDataSource = target.value;
+    this.fetchData();
+  }
+
+  async fetchData() {
+    const url = this.dataSourceUrls[this.selectedDataSource];
+    if (!url) {
+      this.error = `Data source for ${this.selectedDataSource} is not configured.`;
+      this.csvData = [];
       return;
     }
-    const sheetId = match[1];
-    const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+
     try {
-      const response = await fetch(csvUrl);
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Network error');
       const csvText = await response.text();
       const Papa = await import('papaparse');
@@ -56,6 +64,7 @@ export class PcrReaderComponent {
   majorResistance: { strike: string, oiCe: number }[] = [];
   majorSupport: { strike: string, oiPe: number }[] = [];
   pcrValue: number | null = null;
+  pcrChngOiValue: number | null = null;
   totalOiPe: number = 0;
   totalOiCe: number = 0;
   oiCePercent: number = 0;
@@ -64,6 +73,9 @@ export class PcrReaderComponent {
   totalChngOiPe: number = 0;
   chngOiCePercent: number = 0;
   chngOiPePercent: number = 0;
+  totalChngCe: number = 0;
+  totalChngPe: number = 0;
+  middleRowIndex: number = 0;
 
   getKeys(row: any): string[] {
     return Object.keys(row);
@@ -77,6 +89,7 @@ export class PcrReaderComponent {
       this.majorSupport = [];
       return;
     }
+    this.middleRowIndex = Math.floor(this.csvData.length / 2);
     // Extract OI CE, OI PE and Strike columns, filter out invalid rows
     const resistanceList = this.csvData
       .map((row: any) => {
@@ -116,6 +129,19 @@ export class PcrReaderComponent {
     this.chngOiCePercent = totalChng > 0 ? +(this.totalChngOiCe / totalChng * 100).toFixed(2) : 0;
     this.chngOiPePercent = totalChng > 0 ? +(this.totalChngOiPe / totalChng * 100).toFixed(2) : 0;
     this.pcrValue = this.totalOiCe > 0 ? +(this.totalOiPe / this.totalOiCe).toFixed(2) : null;
+    this.pcrChngOiValue = this.totalChngOiCe > 0 ? +(this.totalChngOiPe / this.totalChngOiCe).toFixed(2) : null;
+
+    // Calculate sum of Chng CE and Chng PE
+    this.totalChngCe = +(this.csvData.reduce((sum: number, row: any) => {
+      let val = row['Chng CE'];
+      if (typeof val === 'string') val = val.replace(/,/g, '').trim();
+      return sum + (isNaN(Number(val)) ? 0 : Number(val));
+    }, 0)).toFixed(2);
+    this.totalChngPe = +(this.csvData.reduce((sum: number, row: any) => {
+      let val = row['Chng PE'];
+      if (typeof val === 'string') val = val.replace(/,/g, '').trim();
+      return sum + (isNaN(Number(val)) ? 0 : Number(val));
+    }, 0)).toFixed(2);
 
     // Sort by OI CE descending for resistance
     const resistanceSorted = [...resistanceList].sort((a: any, b: any) => b.oiCe - a.oiCe);
@@ -126,23 +152,4 @@ export class PcrReaderComponent {
     this.majorSupport = supportSorted.map(({ strike, oiPe }) => ({ strike, oiPe }));
   }
 
-  async onFileSelected(event: Event) {
-    const Papa = await import('papaparse');
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file) {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (result: Papa.ParseResult<any>) => {
-          this.csvData = result.data;
-          this.error = '';
-          this.processMajorResistance();
-        },
-        error: (err: Error) => {
-          this.error = 'Error parsing CSV: ' + err.message;
-        }
-      });
-    }
-  }
 }
